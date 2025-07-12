@@ -2,16 +2,16 @@
 #include "mqttHandler.h"
 
 // DEFINIÇÃO DE PINOS
-QueueHandle_t filaMedicoes;
 const uint8_t acopladorPin = 25;
 const uint8_t inputPin = 35;
-unsigned long testeT0;
 
 uint16_t rpmAtual = 0;
 uint8_t rpsAtual = 0;
 float porcentagemSaida = 0.5;
 uint8_t contadorTeste = 0;
 
+unsigned long testeT0;
+QueueHandle_t filaMedicoes;
 char outputBuffer[64];
 
 void taskMedicoes(void* pvParameters) {
@@ -27,12 +27,11 @@ void taskMedicoes(void* pvParameters) {
   while (true) {
     while(millis() - t0 < INTERVALO_CONTAGEM) {
       uint16_t input = analogRead(inputPin);
-      //Serial.println(input);
       if (input < 500) {
         while(analogRead(inputPin) < 500);
         contagemMedidas += 1;
 
-        //delay(1);
+        delay(1);
       }
     }
 
