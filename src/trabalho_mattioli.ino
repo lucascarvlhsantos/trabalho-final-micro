@@ -1,4 +1,4 @@
-#define INTERVALO_CONTAGEM 1000 // em ms
+const uint16_t INTERVALO_CONTAGEM = 3000; // em ms
 #include "mqttHandler.h"
 
 // DEFINIÇÃO DE PINOS
@@ -6,7 +6,7 @@ const uint8_t acopladorPin = 25;
 const uint8_t inputPin = 35;
 
 uint16_t rpmAtual = 0;
-uint8_t rpsAtual = 0;
+float rpsAtual = 0;
 float porcentagemSaida = 0.5;
 uint8_t contadorTeste = 0;
 
@@ -14,7 +14,7 @@ unsigned long testeT0;
 QueueHandle_t filaMedicoes;
 char outputBuffer[64];
 
-void taskMedicoes(void* pvParameters) {
+void tarefaMotor(void* pvParameters) {
   uint8_t contagemMedidas = 0;
   uint8_t contagemCiclos = 0;
   uint8_t medidasRotacao[10];
@@ -22,16 +22,14 @@ void taskMedicoes(void* pvParameters) {
     medidasRotacao[i] = 0;
   }
 
-  unsigned long t0 = millis();
   unsigned long mqttT0 = millis();
   while (true) {
+    unsigned long t0 = millis();
     while(millis() - t0 < INTERVALO_CONTAGEM) {
       uint16_t input = analogRead(inputPin);
       if (input < 500) {
-        while(analogRead(inputPin) < 500);
         contagemMedidas += 1;
-
-        delay(1);
+        while(analogRead(inputPin) < 2000);
       }
     }
 
@@ -42,19 +40,20 @@ void taskMedicoes(void* pvParameters) {
       somaValoresRotacoes += medidasRotacao[i];
     }
 
-    rpsAtual = (uint8_t)round((float)somaValoresRotacoes / (float)sizeof(medidasRotacao));
+    //rpsAtual = (uint8_t)round((float)somaValoresRotacoes / (float)sizeof(medidasRotacao));
+    rpsAtual = (float) contagemMedidas / 3.0;
     medidasRotacao[contagemCiclos] = rpsAtual;
     contagemMedidas = 0;
     contagemCiclos = (contagemCiclos + 1) % 10;
 
     if (millis() - mqttT0 > 2000) {
-      sprintf(outputBuffer, "Saída atual: %u%% | RPS: %u Hz | RPM: %u RPM", uint8_t(porcentagemSaida * 100), rpsAtual, (uint16_t) rpsAtual * 60);
+      sprintf(outputBuffer, "Saída atual: %u%% | RPS: %.2f Hz | RPM: %u RPM", uint8_t(porcentagemSaida * 100), rpsAtual, (uint16_t) rpsAtual * 60);
       xQueueSend(filaMedicoes, &outputBuffer, portMAX_DELAY);
+      Serial.println(outputBuffer);
       mqttT0 = millis();
     }
 
-    t0 = millis();
-    delay(1);
+    delay(10);
   }
 }
 
@@ -73,8 +72,8 @@ void setup() {
     NULL
   );
   xTaskCreate(
-    taskMedicoes,
-    "taskMedicoes",
+    tarefaMotor,
+    "tarefaMotor",
     2 * 1024,
     NULL,
     1,
